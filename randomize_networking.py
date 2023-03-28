@@ -8,22 +8,36 @@ import numpy as np
 
 
 #==================================================================
-def gen_groups(rsvpdict,order,Nblocks=4,groupsize=4):
+def gen_groups(rsvpdict,order,Nblocks=4,groupsize=4,doextra=True):
     """
     arrange people into groups of groupsize people
     with Nblocks different groupings (time blocks for networking)
     
     -1's correspond to empty spots
+    if doextra=True, track empty spots as well as if they're another group
+    (e.g. for assigning spots to people who didn't rsvp)
     """
     total = 0
-    otherkeys = []
-    # count total rsvps, check for keys not in order
+    # count total rsvps
     for k in rsvpdict.keys():
         total+=rsvpdict[k]
-        if k not in order:
-            otherkeys.append(k)
 
+    remainder = total%groupsize
+    Ngroup = total//groupsize
+    if remainder: # figure out chairs per group
+        chairs = groupsize+1
+    else:
+        chairs= groupsize
 
+    if doextra: #keep track of extra spots as its own category
+        extraspots=chairs*Ngroup-total
+        rsvpdict['extra']=extraspots
+        total+=extraspots
+        order.append('extra')
+
+    # one row per participant, columns are table numbers
+    locs = -1*np.ones((total,Nblocks),dtype=int) 
+        
     # each participant gets an id
     participant_list = []
     masks = {}
@@ -35,16 +49,6 @@ def gen_groups(rsvpdict,order,Nblocks=4,groupsize=4):
         
 
 
-    # one row per participant, columns are table numbers
-    locs = -1*np.ones((total,Nblocks),dtype=int) 
-    
-    
-    remainder = total%groupsize
-    Ngroup = total//groupsize
-    if remainder:
-        chairs = groupsize+1
-    else:
-        chairs= groupsize
     tables = -1*np.ones((Ngroup*Nblocks,chairs+2),dtype=int)
     # 2d array, first column is the time block, rows are table, columns are chairs
     blocklabels = np.repeat(np.arange(1,Nblocks+1),Ngroup)
@@ -65,11 +69,12 @@ def gen_groups(rsvpdict,order,Nblocks=4,groupsize=4):
             catinds = pinds[masks[cat]]
             np.random.shuffle(catinds)
             pinds[masks[cat]]=catinds
-            print('block',b,cat,catinds)
+            #print('block',b,cat,catinds)
         locs[:,b]=np.tile(tableinds,chairs)[pinds]
         # now translate that info into who is seated at each table
         for t in range(1,Ngroup+1): # loop through table numbers
             tlist = np.where(locs[:,b]==t)[0] # indices of people at table t
+            tlist[tlist>=0] = tlist[tlist>=0]+1 # start count at 1; keep -1's for empty spots
             tables[b*Ngroup + t-1,2:2+tlist.size] = tlist
             
     return participant_list, locs, tables
@@ -84,12 +89,13 @@ def save_groups(participant_list, locs, tables,outnamebase):
     chairs = tables.shape[1]-2
     with open(peoplefile,'w') as f:
         print("Saving participant locations to",peoplefile)
-        header = 'id, type, '+''.join([str(b)+', ' for b in range(1,Nblocks+1)])
+        header = 'id, type, '+''.join(['block'+str(b)+', ' for b in range(1,Nblocks+1)])
         np.savetxt(f,np.hstack((ids,rows,locs)),delimiter=', ',fmt='%s',header=header)
 
     with open(tablefile,'w') as f:
         print("Saving table info to",tablefile)
-        header = "timeblock, table, "+''.join([str(c)+', ' for c in range(1,chairs+1)])
+        header = "block, table, "+''.join(['ID'+str(c)+', ' for c in range(1,chairs+1)])+''.join(['seat'+str(c)+', ' for c in range(1,chairs+1)])
+        #print(header)
         rowinfo=[]
         for r in range(tables.shape[0]):
             cinfo=[]
@@ -97,7 +103,7 @@ def save_groups(participant_list, locs, tables,outnamebase):
                 if tables[r,2+c]==-1:
                     cinfo.append('empty')
                 else:
-                    cinfo.append(participant_list[tables[r,2+c]])
+                    cinfo.append(participant_list[tables[r,2+c]-1])
             rowinfo.append(cinfo)
         rowinfo = np.array(rowinfo,dtype='20U')
             
@@ -123,10 +129,10 @@ def main():
     # including undergrad in psi
     rsvps = {
         'faculty':2,
-        'staff':6,
-        'postdoc':7,
+        'staff':8,
+        'postdoc':8,
         'grad2+':2,
-        'grad12':6,
+        'grad12':8,
         'psi':10,
     }
     # group into some larger categories
@@ -139,7 +145,7 @@ def main():
     gr_rsvps=group_rsvps(rsvps,cats)
     order=['senior','postdoc','phd','psi']
 
-    outname='test'
+    outname='table_assignments'
     Nblocks=4
     groupsize=4
     plist,locs,tables = gen_groups(gr_rsvps,order,Nblocks,groupsize)

@@ -8,7 +8,7 @@ import numpy as np
 
 
 #==================================================================
-def gen_groups(rsvpdict,order,Nblocks=4,groupsize=4,doextra=True):
+def gen_groups(rsvpdict,order,Nblocks=4,groupsize=4,doextra=True,alwaysextra=True):
     """
     arrange people into groups of groupsize people
     with Nblocks different groupings (time blocks for networking)
@@ -24,7 +24,7 @@ def gen_groups(rsvpdict,order,Nblocks=4,groupsize=4,doextra=True):
 
     remainder = total%groupsize
     Ngroup = total//groupsize
-    if remainder: # figure out chairs per group
+    if remainder or alwaysextra: # figure out chairs per group
         chairs = groupsize+1
     else:
         chairs= groupsize
@@ -129,11 +129,11 @@ def main():
     # including undergrad in psi
     rsvps = {
         'faculty':2,
-        'staff':8,
+        'staff':9,
         'postdoc':8,
         'grad2+':2,
         'grad12':8,
-        'psi':10,
+        'psi':11,
     }
     # group into some larger categories
     cats = {

@@ -130,10 +130,10 @@ def main():
     rsvps = {
         'faculty':2,
         'staff':9,
-        'postdoc':8,
-        'grad2+':2,
-        'grad12':8,
-        'psi':11,
+        'postdoc':9,
+        'grad2+':3,
+        'grad12':9,
+        'psi':12,
     }
     # group into some larger categories
     cats = {
